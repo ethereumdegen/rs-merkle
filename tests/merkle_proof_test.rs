@@ -137,7 +137,7 @@ pub mod to_bytes {
 
 pub mod from_bytes {
     use crate::common;
-    use rs_merkle::{algorithms::Sha256, Error, MerkleProof};
+    use rs_merkle::{algorithms::Sha256, Error, MerkleProof, MerkleTree};
 
     #[test]
     pub fn should_return_result_with_proof() -> Result<(), Error> {
@@ -181,4 +181,37 @@ pub mod from_bytes {
             "proof of size 84 bytes can not be divided into chunks of 32 bytes"
         );
     }
+    
+    
+    
+    // Expect to calculate the correct root even though the indices are unsorted
+    #[test]
+    fn should_sort_indices() {
+        let test_data = common::setup();
+        let leaf_hashes = &test_data.leaf_hashes;
+        let expected_root = test_data.expected_root_hex.clone();
+        let indices_to_prove = vec![0, 3];
+
+        let merkle_tree = MerkleTree::<Sha256>::from_leaves(&test_data.leaf_hashes);
+        let proof = merkle_tree.proof(&indices_to_prove);
+
+        // make indices unsorted
+        let indices_to_compute_root = vec![3, 0];
+        let leaves_to_compute_root: Vec<[u8; 32]> = indices_to_compute_root
+            .iter()
+            .map(|i| *leaf_hashes.get(*i).unwrap())
+            .collect();
+
+        let extracted_root = proof
+            .root_hex(
+                &indices_to_compute_root,
+                &leaves_to_compute_root,
+                test_data.leaf_values.len(),
+            )
+            .unwrap();
+
+        assert_eq!(extracted_root, expected_root);
+    }
+    
+    
 }
